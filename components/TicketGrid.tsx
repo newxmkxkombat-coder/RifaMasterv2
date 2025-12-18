@@ -1,5 +1,5 @@
 
-import React from 'react';
+import React, { forwardRef } from 'react';
 import { Ticket, TicketStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
 import { RefreshCw, X } from 'lucide-react';
@@ -12,15 +12,17 @@ interface TicketGridProps {
   activeOwnerName?: string | null;
 }
 
-const TicketGrid: React.FC<TicketGridProps> = ({ 
+const TicketGrid = forwardRef<HTMLDivElement, TicketGridProps>(({ 
   tickets, 
   onToggleTicket, 
   swappingTicketId, 
   isFullScreen = false, 
   activeOwnerName = null 
-}) => {
+}, ref) => {
   return (
     <div 
+      ref={ref}
+      id="raffle-grid-capture"
       className={`
         grid transition-all duration-300 w-full mx-auto
         ${isFullScreen 
@@ -81,6 +83,6 @@ const TicketGrid: React.FC<TicketGridProps> = ({
       })}
     </div>
   );
-};
+});
 
 export default TicketGrid;
