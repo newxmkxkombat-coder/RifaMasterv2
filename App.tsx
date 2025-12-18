@@ -432,7 +432,7 @@ const App: React.FC = () => {
         </div>
       )}
 
-      <main className={`${isFullScreen ? 'h-full flex flex-col pt-8 pb-32' : 'max-w-5xl mx-auto px-4 py-8'}`}>
+      <main className={`${isFullScreen ? 'fixed inset-0 flex flex-col pt-8 pb-[140px] bg-slate-950' : 'max-w-5xl mx-auto px-4 py-8'}`}>
         {!isFullScreen && (
           <div className="flex space-x-8 border-b border-slate-800 mb-8">
             <button type="button" onClick={() => { setActiveTab('grid'); handleClearSelection(); }} className={`pb-4 px-2 text-sm font-black uppercase tracking-widest relative transition-all ${activeTab === 'grid' ? 'text-emerald-400' : 'text-slate-500'}`}>
@@ -446,9 +446,9 @@ const App: React.FC = () => {
           </div>
         )}
 
-        <div className={`flex-1 ${isFullScreen ? 'flex items-center justify-center overflow-auto' : ''}`}>
+        <div className={`flex-1 min-h-0 ${isFullScreen ? 'px-1' : ''}`}>
           {activeTab === 'grid' ? (
-            <div className={isFullScreen ? 'w-full max-w-4xl px-4 flex flex-col items-center justify-center' : ''}>
+            <>
               {swappingTicketId && !isFullScreen && (
                  <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 mb-8 flex justify-between items-center ring-1 ring-indigo-500/20 w-full">
                     <p className="text-sm font-semibold text-indigo-300 italic">Moviendo #{swappingTicketId}. Elije un nuevo destino disponible.</p>
@@ -482,7 +482,7 @@ const App: React.FC = () => {
                 isFullScreen={isFullScreen} 
                 activeOwnerName={addingTicketsToUser}
               />
-            </div>
+            </>
           ) : (
             <UserSummaryList 
               tickets={tickets} 
