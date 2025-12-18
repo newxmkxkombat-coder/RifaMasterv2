@@ -8,6 +8,9 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;900&display=swap" rel="stylesheet">
     <script>
+      // Shim para evitar errores de 'process is not defined'
+      window.process = { env: { API_KEY: "" } };
+      
       tailwind.config = {
         darkMode: 'class',
         theme: {
@@ -25,7 +28,6 @@
         color: #f8fafc;
         -webkit-tap-highlight-color: transparent;
       }
-      /* Custom Scrollbar for dark mode */
       ::-webkit-scrollbar {
         width: 8px;
       }
@@ -43,15 +45,8 @@
         from { opacity: 0; }
         to { opacity: 1; }
       }
-      @keyframes slideUp {
-        from { transform: translateY(20px); opacity: 0; }
-        to { transform: translateY(0); opacity: 1; }
-      }
       .animate-fade-in {
         animation: fadeIn 0.3s ease-out;
-      }
-      .animate-slide-up {
-        animation: slideUp 0.4s cubic-bezier(0.16, 1, 0.3, 1);
       }
     </style>
   <script type="importmap">
@@ -62,8 +57,8 @@
     "react-dom/client": "https://esm.sh/react-dom@19.0.0/client",
     "@google/genai": "https://esm.sh/@google/genai@1.33.0",
     "lucide-react": "https://esm.sh/lucide-react@0.460.0",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/"
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/"
   }
 }
 </script>
@@ -73,9 +68,11 @@
       <div class="h-screen w-screen flex items-center justify-center bg-slate-950">
         <div class="flex flex-col items-center gap-4">
           <div class="w-8 h-8 border-4 border-emerald-500/30 border-t-emerald-500 rounded-full animate-spin"></div>
-          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/50 italic">Cargando RifaMaster...</p>
+          <p class="text-[10px] font-black uppercase tracking-[0.2em] text-emerald-500/50 italic">Iniciando Sistema...</p>
         </div>
       </div>
     </div>
+    <!-- Carga explícita del punto de entrada de la aplicación -->
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>
