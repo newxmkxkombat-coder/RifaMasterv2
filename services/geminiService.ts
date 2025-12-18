@@ -4,12 +4,16 @@ import { Ticket, TicketStatus } from "../types";
 import { TICKET_PRICE } from "../constants";
 
 const getAiClient = () => {
-  const apiKey = process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("API_KEY is not set in process.env");
+  // Verificación segura de la existencia de process y env
+  try {
+    const apiKey = (window as any).process?.env?.API_KEY || "";
+    if (!apiKey) {
+      return null;
+    }
+    return new GoogleGenAI({ apiKey });
+  } catch (e) {
     return null;
   }
-  return new GoogleGenAI({ apiKey });
 };
 
 export const askRaffleAssistant = async (
@@ -17,7 +21,7 @@ export const askRaffleAssistant = async (
   question: string
 ): Promise<string> => {
   const ai = getAiClient();
-  if (!ai) return "Error: API Key no configurada.";
+  if (!ai) return "Configura tu API Key para usar la IA.";
 
   const reservedCount = tickets.filter(t => t.status === TicketStatus.RESERVED).length;
   const paidCount = tickets.filter(t => t.status === TicketStatus.PAID).length;
@@ -40,16 +44,14 @@ export const askRaffleAssistant = async (
     .join(", ");
 
   const systemPrompt = `
-    Eres un asistente inteligente para una aplicación de Rifa (00-99).
-    Datos actuales:
-    - Precio por boleta: $${TICKET_PRICE}
-    - Disponibles: ${availableCount}
-    - Reservadas (Deben dinero): ${reservedCount} ($${totalMoneyPending} pendientes)
-    - Pagadas: ${paidCount} ($${totalMoneyRaised} recaudados)
-    - Top compradores: ${topBuyers || "Ninguno aún"}
+    Eres un asistente para una Rifa (00-99).
+    Precio: $${TICKET_PRICE}
+    Disponibles: ${availableCount}
+    Reservadas: ${reservedCount} ($${totalMoneyPending} deuda)
+    Pagadas: ${paidCount} ($${totalMoneyRaised} total)
+    Top: ${topBuyers || "Ninguno"}
     
-    Responde a la pregunta del usuario basándote en estos datos. Sé breve, carismático y útil.
-    Si te piden elegir un ganador, elige uno al azar de los números VENDIDOS (RESERVED o PAID).
+    Responde breve y profesionalmente.
   `;
 
   try {
@@ -58,13 +60,11 @@ export const askRaffleAssistant = async (
       contents: question,
       config: {
         systemInstruction: systemPrompt,
-        temperature: 0.7,
       }
     });
 
-    return response.text || "No pude generar una respuesta.";
+    return response.text || "No hay respuesta.";
   } catch (error) {
-    console.error("Gemini API Error:", error);
-    return "Ocurrió un error consultando a la IA.";
+    return "Error de conexión con la IA.";
   }
 };
