@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { Ticket, TicketStatus } from "../types";
 import { TICKET_PRICE } from "../constants";
@@ -18,7 +19,6 @@ export const askRaffleAssistant = async (
   const ai = getAiClient();
   if (!ai) return "Error: API Key no configurada.";
 
-  // Prepare a summary of the data for the model
   const reservedCount = tickets.filter(t => t.status === TicketStatus.RESERVED).length;
   const paidCount = tickets.filter(t => t.status === TicketStatus.PAID).length;
   const availableCount = tickets.filter(t => t.status === TicketStatus.AVAILABLE).length;
@@ -26,7 +26,6 @@ export const askRaffleAssistant = async (
   const totalMoneyRaised = paidCount * TICKET_PRICE;
   const totalMoneyPending = reservedCount * TICKET_PRICE;
 
-  // List of top buyers
   const buyersMap = new Map<string, number>();
   tickets.forEach(t => {
     if (t.ownerName) {
@@ -40,7 +39,7 @@ export const askRaffleAssistant = async (
     .map(([name, count]) => `${name} (${count})`)
     .join(", ");
 
-  const context = `
+  const systemPrompt = `
     Eres un asistente inteligente para una aplicación de Rifa (00-99).
     Datos actuales:
     - Precio por boleta: $${TICKET_PRICE}
@@ -51,17 +50,14 @@ export const askRaffleAssistant = async (
     
     Responde a la pregunta del usuario basándote en estos datos. Sé breve, carismático y útil.
     Si te piden elegir un ganador, elige uno al azar de los números VENDIDOS (RESERVED o PAID).
-    Si no hay vendidos, dilo.
   `;
 
   try {
     const response = await ai.models.generateContent({
-      model: "gemini-2.5-flash",
-      contents: [
-        { role: 'user', parts: [{ text: context }] },
-        { role: 'user', parts: [{ text: question }] }
-      ],
+      model: "gemini-3-flash-preview",
+      contents: question,
       config: {
+        systemInstruction: systemPrompt,
         temperature: 0.7,
       }
     });
