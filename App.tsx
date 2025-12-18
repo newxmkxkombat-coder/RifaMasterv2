@@ -312,6 +312,7 @@ const App: React.FC = () => {
                
                <div className="flex items-center gap-2 sm:ml-6">
                   <button 
+                    type="button"
                     onClick={handleEnterFullScreen}
                     className="p-2.5 text-emerald-400 hover:bg-emerald-500/10 bg-slate-800 rounded-xl transition-all active:scale-95"
                     title="Modo Tablero Completo"
@@ -320,6 +321,7 @@ const App: React.FC = () => {
                   </button>
                   <div className="relative">
                     <button 
+                      type="button"
                       onClick={() => setShowDbMenu(!showDbMenu)}
                       className="p-2.5 text-slate-400 hover:text-slate-100 bg-slate-800 rounded-xl transition-colors"
                     >
@@ -328,18 +330,18 @@ const App: React.FC = () => {
                     {showDbMenu && (
                       <div className="absolute top-full right-0 mt-3 w-64 bg-slate-900 rounded-2xl shadow-2xl border border-slate-800 z-50 overflow-hidden ring-1 ring-white/10">
                         <div className="p-2 space-y-1">
-                           <button onClick={handlePrepareExportText} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-emerald-400 hover:bg-emerald-950/30 rounded-xl font-bold transition-colors">
+                           <button type="button" onClick={handlePrepareExportText} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-emerald-400 hover:bg-emerald-950/30 rounded-xl font-bold transition-colors">
                               <FileText size={16} /> <span>Exportar Lista (Texto)</span>
                            </button>
                            <div className="h-px bg-slate-800 my-1 mx-2"></div>
-                           <button onClick={handleDownloadBackup} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 rounded-xl transition-colors">
+                           <button type="button" onClick={handleDownloadBackup} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 rounded-xl transition-colors">
                               <Download size={16} /> <span>Respaldar Datos (JSON)</span>
                            </button>
-                           <button onClick={() => fileInputRef.current?.click()} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 rounded-xl transition-colors">
+                           <button type="button" onClick={() => fileInputRef.current?.click()} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-slate-300 hover:bg-slate-800 rounded-xl transition-colors">
                               <Upload size={16} /> <span>Cargar Datos</span>
                            </button>
                            <div className="h-px bg-slate-800 my-1 mx-2"></div>
-                           <button onClick={() => { if(confirm('¿Borrar TODO?')) setTickets(Array.from({ length: TOTAL_NUMBERS }, (_, i) => ({ id: i.toString().padStart(2, '0'), status: TicketStatus.AVAILABLE }))); setShowDbMenu(false); }} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-400 hover:bg-red-950/30 rounded-xl font-bold transition-colors">
+                           <button type="button" onClick={() => { if(confirm('¿Borrar TODO?')) setTickets(Array.from({ length: TOTAL_NUMBERS }, (_, i) => ({ id: i.toString().padStart(2, '0'), status: TicketStatus.AVAILABLE }))); setShowDbMenu(false); }} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-400 hover:bg-red-950/30 rounded-xl font-bold transition-colors">
                               <Trash size={16} /> <span>Reiniciar Rifa</span>
                            </button>
                         </div>
@@ -354,7 +356,7 @@ const App: React.FC = () => {
 
       {/* Financial Stats Bar - Ultra Compact 10px */}
       {!isFullScreen && (
-        <section className="max-w-5xl mx-auto px-4 mt-4 animate-fade-in">
+        <section className="max-w-5xl mx-auto px-4 mt-4">
           <div className="flex flex-wrap items-center gap-3">
             <div className="flex items-center gap-1.5 px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-full">
               <span className="text-[10px] font-black uppercase text-emerald-500 tracking-wider">Recaudado:</span>
@@ -375,7 +377,7 @@ const App: React.FC = () => {
 
       {/* Export Modal */}
       {exportModal.isOpen && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl animate-fade-in">
+        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
           <div className="bg-slate-900 rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-8 border-b border-slate-800 flex justify-between items-center">
               <div>
@@ -383,6 +385,7 @@ const App: React.FC = () => {
                 <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-widest">Listo para compartir</p>
               </div>
               <button 
+                type="button"
                 onClick={() => setExportModal({ isOpen: false, content: '' })}
                 className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-full transition-all"
               >
@@ -398,6 +401,7 @@ const App: React.FC = () => {
 
             <div className="p-8 bg-slate-950/50 border-t border-slate-800 flex flex-col sm:flex-row gap-4">
               <button 
+                type="button"
                 onClick={handleCopyContent}
                 className={`
                   flex-1 py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-all
@@ -408,6 +412,7 @@ const App: React.FC = () => {
                 {copied ? '¡Copiado!' : 'Copiar Todo'}
               </button>
               <button 
+                type="button"
                 onClick={() => setExportModal({ isOpen: false, content: '' })}
                 className="flex-1 py-5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-[1.5rem] font-black uppercase tracking-widest text-sm"
               >
@@ -430,24 +435,24 @@ const App: React.FC = () => {
       <main className={`${isFullScreen ? 'h-full flex flex-col pt-8 pb-32' : 'max-w-5xl mx-auto px-4 py-8'}`}>
         {!isFullScreen && (
           <div className="flex space-x-8 border-b border-slate-800 mb-8">
-            <button onClick={() => { setActiveTab('grid'); handleClearSelection(); }} className={`pb-4 px-2 text-sm font-black uppercase tracking-widest relative transition-all ${activeTab === 'grid' ? 'text-emerald-400' : 'text-slate-500'}`}>
+            <button type="button" onClick={() => { setActiveTab('grid'); handleClearSelection(); }} className={`pb-4 px-2 text-sm font-black uppercase tracking-widest relative transition-all ${activeTab === 'grid' ? 'text-emerald-400' : 'text-slate-500'}`}>
               <div className="flex items-center gap-2.5"><LayoutGrid size={18} /><span>Tablero</span></div>
               {activeTab === 'grid' && <span className="absolute bottom-0 left-0 w-full h-1 bg-emerald-500 rounded-t-full shadow-[0_0_10px_rgba(16,185,129,0.4)]"></span>}
             </button>
-            <button onClick={() => { setActiveTab('users'); handleClearSelection(); }} className={`pb-4 px-2 text-sm font-black uppercase tracking-widest relative transition-all ${activeTab === 'users' ? 'text-emerald-400' : 'text-slate-500'}`}>
+            <button type="button" onClick={() => { setActiveTab('users'); handleClearSelection(); }} className={`pb-4 px-2 text-sm font-black uppercase tracking-widest relative transition-all ${activeTab === 'users' ? 'text-emerald-400' : 'text-slate-500'}`}>
                <div className="flex items-center gap-2.5"><Users size={18} /><span>Participantes</span></div>
               {activeTab === 'users' && <span className="absolute bottom-0 left-0 w-full h-1 bg-emerald-500 rounded-t-full shadow-[0_0_10px_rgba(16,185,129,0.4)]"></span>}
             </button>
           </div>
         )}
 
-        <div className={`animate-fade-in flex-1 ${isFullScreen ? 'flex items-center justify-center overflow-auto' : ''}`}>
+        <div className={`flex-1 ${isFullScreen ? 'flex items-center justify-center overflow-auto' : ''}`}>
           {activeTab === 'grid' ? (
             <div className={isFullScreen ? 'w-full max-w-4xl px-4 flex flex-col items-center justify-center' : ''}>
               {swappingTicketId && !isFullScreen && (
                  <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 mb-8 flex justify-between items-center ring-1 ring-indigo-500/20 w-full">
                     <p className="text-sm font-semibold text-indigo-300 italic">Moviendo #{swappingTicketId}. Elije un nuevo destino disponible.</p>
-                    <button onClick={() => setSwappingTicketId(null)} className="text-[10px] font-black bg-indigo-500 text-white px-4 py-2 rounded-xl uppercase">Cancelar</button>
+                    <button type="button" onClick={() => setSwappingTicketId(null)} className="text-[10px] font-black bg-indigo-500 text-white px-4 py-2 rounded-xl uppercase">Cancelar</button>
                  </div>
               )}
               {addingTicketsToUser && !isFullScreen && (
@@ -462,6 +467,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                     <button 
+                      type="button"
                       onClick={() => setAddingTicketsToUser(null)} 
                       className="text-[10px] font-black bg-emerald-500 text-slate-950 hover:bg-emerald-400 px-6 py-2.5 rounded-xl uppercase tracking-widest shadow-lg active:scale-95 transition-all"
                     >
@@ -510,6 +516,7 @@ const App: React.FC = () => {
                     {selectedCount > 0 && (
                       <div className="flex gap-2">
                         <button 
+                          type="button"
                           onClick={() => handleConfirmSale(addingTicketsToUser || fullScreenName, false)}
                           disabled={!(addingTicketsToUser || fullScreenName).trim()}
                           className="bg-slate-800 text-amber-500 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all whitespace-nowrap"
@@ -517,6 +524,7 @@ const App: React.FC = () => {
                           Apartar
                         </button>
                         <button 
+                          type="button"
                           onClick={() => handleConfirmSale(addingTicketsToUser || fullScreenName, true)}
                           disabled={!(addingTicketsToUser || fullScreenName).trim()}
                           className="bg-emerald-500 text-slate-950 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all flex items-center gap-2 whitespace-nowrap"
@@ -534,6 +542,7 @@ const App: React.FC = () => {
                           {fsSuggestions.map((name, i) => (
                             <button
                               key={i}
+                              type="button"
                               onClick={() => { setFullScreenName(name); setShowFsSuggestions(false); }}
                               className="w-full text-left px-4 py-3 text-sm font-bold text-slate-200 hover:bg-emerald-500 hover:text-slate-950 rounded-xl transition-colors flex items-center gap-3"
                             >
@@ -547,6 +556,7 @@ const App: React.FC = () => {
               </div>
 
               <button 
+                type="button"
                 onClick={() => { setIsFullScreen(false); setAddingTicketsToUser(null); }}
                 className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg border border-slate-700"
               >
