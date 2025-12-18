@@ -2,7 +2,7 @@
 import React, { forwardRef } from 'react';
 import { Ticket, TicketStatus } from '../types';
 import { STATUS_COLORS } from '../constants';
-import { RefreshCw, X } from 'lucide-react';
+import { RefreshCw, X, Check } from 'lucide-react';
 
 interface TicketGridProps {
   tickets: Ticket[];
@@ -24,23 +24,23 @@ const TicketGrid = forwardRef<HTMLDivElement, TicketGridProps>(({
       ref={ref}
       id="raffle-grid-capture"
       className={`
-        grid transition-all duration-300 w-full mx-auto
+        grid transition-all duration-500 w-full mx-auto
         ${isFullScreen 
-          ? 'grid-cols-10 grid-rows-10 h-full w-full gap-1 p-2 bg-slate-950 overflow-hidden' 
-          : 'grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-4 p-5 bg-slate-900 border border-slate-800 shadow-2xl rounded-2xl'
+          ? 'grid-cols-10 grid-rows-10 h-full w-full gap-1 p-1 bg-slate-950 overflow-hidden' 
+          : 'grid-cols-5 sm:grid-cols-10 gap-2 sm:gap-3 p-4 bg-slate-900/50 border border-slate-800/50 shadow-2xl rounded-[2rem] backdrop-blur-sm'
         }
       `}
     >
       {tickets.map((ticket) => {
         const isSwappingSource = ticket.id === swappingTicketId;
         const belongsToActiveUser = activeOwnerName && ticket.ownerName === activeOwnerName;
+        const isPaid = ticket.status === TicketStatus.PAID;
+        const isReserved = ticket.status === TicketStatus.RESERVED;
+        const isSelected = ticket.status === TicketStatus.SELECTED;
         
-        const isOccupied = 
-          ticket.status === TicketStatus.SELECTED || 
-          ticket.status === TicketStatus.RESERVED || 
-          ticket.status === TicketStatus.PAID;
+        const isOccupied = isReserved || isPaid || isSelected;
 
-        let isInteractive = ticket.status === TicketStatus.AVAILABLE || ticket.status === TicketStatus.SELECTED;
+        let isInteractive = ticket.status === TicketStatus.AVAILABLE || isSelected;
         
         if (swappingTicketId) {
             isInteractive = ticket.status === TicketStatus.AVAILABLE; 
@@ -55,29 +55,41 @@ const TicketGrid = forwardRef<HTMLDivElement, TicketGridProps>(({
             onClick={() => isInteractive ? onToggleTicket(ticket.id) : null}
             disabled={!isInteractive && !isSwappingSource}
             className={`
-              relative flex flex-col items-center justify-center font-black transition-all duration-200 rounded-md sm:rounded-lg
-              ${isSwappingSource ? 'bg-indigo-900 border-indigo-400 text-white ring-2 ring-indigo-500/50 z-10' : STATUS_COLORS[ticket.status]}
-              ${belongsToActiveUser ? 'bg-emerald-950 border-emerald-500 text-white shadow-[0_0_5px_rgba(16,185,129,0.3)]' : ''}
+              relative flex flex-col items-center justify-center font-black transition-all duration-300 rounded-lg sm:rounded-xl border-2
+              ${isSwappingSource ? 'bg-indigo-600 border-indigo-400 text-white ring-4 ring-indigo-500/30 z-10 scale-105' : STATUS_COLORS[ticket.status]}
+              ${belongsToActiveUser ? 'bg-emerald-500/40 border-emerald-400 text-emerald-50 shadow-[0_0_20px_rgba(52,211,153,0.5)] z-10 scale-105' : ''}
               ${!isInteractive && !isSwappingSource ? 'cursor-not-allowed opacity-100' : 'active:scale-90 cursor-pointer'}
-              ${isFullScreen ? 'h-full w-full text-[2.5vh] sm:text-[3vh]' : 'aspect-square text-lg sm:text-2xl'} border-2
+              ${isFullScreen ? 'h-full w-full text-[2.2vh] sm:text-[2.8vh]' : 'aspect-square text-lg sm:text-2xl'}
             `}
           >
-            <span className={`relative z-10 text-white drop-shadow-lg ${isOccupied && !isSwappingSource ? 'opacity-40' : 'opacity-100'}`}>
+            {/* Numero del ticket: Visible y nítido */}
+            <span className={`
+              relative z-10 transition-all duration-300 drop-shadow-md
+              ${isOccupied && !isSwappingSource && !belongsToActiveUser ? 'opacity-90' : 'opacity-100'}
+              ${isSelected ? 'scale-110 text-white' : ''}
+              ${isReserved || isPaid ? 'text-red-200' : ''}
+            `}>
               {ticket.id}
             </span>
             
-            {isOccupied && !isSwappingSource && (
-               <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none overflow-hidden">
-                  <X 
-                    className={`w-full h-full opacity-100 scale-75 ${belongsToActiveUser ? 'text-emerald-400' : 'text-red-600'}`} 
-                    strokeWidth={4}
-                  />
+            {/* Indicadores de estado: Usamos rojo para ambos estados de ocupado */}
+            {isOccupied && !isSwappingSource && !isSelected && (
+               <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none p-1 opacity-20">
+                  {isPaid ? (
+                    <Check className="text-red-400 w-full h-full" strokeWidth={4} />
+                  ) : (
+                    <X className="text-red-400 w-full h-full" strokeWidth={4} />
+                  )}
                </div>
             )}
             
+            {/* Efecto de intercambio */}
             {isSwappingSource && (
-              <RefreshCw className={`absolute top-0.5 right-0.5 animate-spin-slow opacity-80 w-2 h-2 sm:w-3 sm:h-3`} />
+              <RefreshCw className={`absolute bottom-1 right-1 animate-spin-slow text-white/70 w-2 h-2 sm:w-4 sm:h-4`} />
             )}
+            
+            {/* Brillo decorativo superior para realismo táctil */}
+            <div className="absolute top-0 left-0 right-0 h-[40%] bg-gradient-to-b from-white/10 to-transparent rounded-t-lg pointer-events-none"></div>
           </button>
         );
       })}
