@@ -62,19 +62,19 @@ const TicketGrid = forwardRef<HTMLDivElement, TicketGridProps>(({
               ${isFullScreen ? 'h-full w-full text-[2.2vh] sm:text-[2.8vh]' : 'aspect-square text-lg sm:text-2xl'}
             `}
           >
-            {/* Numero del ticket: Visible y nítido */}
+            {/* Numero del ticket: En pantalla completa los ocupados son casi invisibles */}
             <span className={`
               relative z-10 transition-all duration-300 drop-shadow-md
-              ${isOccupied && !isSwappingSource && !belongsToActiveUser ? 'opacity-90' : 'opacity-100'}
+              ${isFullScreen && (isReserved || isPaid) ? 'opacity-[0.05]' : (isOccupied && !isSwappingSource && !belongsToActiveUser ? 'opacity-90' : 'opacity-100')}
               ${isSelected ? 'scale-110 text-white' : ''}
-              ${isReserved || isPaid ? 'text-red-200' : ''}
+              ${(isReserved || isPaid) && !isFullScreen ? 'text-red-200' : ''}
             `}>
               {ticket.id}
             </span>
             
-            {/* Indicadores de estado: Usamos rojo para ambos estados de ocupado */}
+            {/* Indicadores de estado: Ocultos o muy tenues en pantalla completa para limpieza visual */}
             {isOccupied && !isSwappingSource && !isSelected && (
-               <div className="absolute inset-0 z-0 flex items-center justify-center pointer-events-none p-1 opacity-20">
+               <div className={`absolute inset-0 z-0 flex items-center justify-center pointer-events-none p-1 ${isFullScreen ? 'opacity-[0.03]' : 'opacity-20'}`}>
                   {isPaid ? (
                     <Check className="text-red-400 w-full h-full" strokeWidth={4} />
                   ) : (
