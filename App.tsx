@@ -22,7 +22,9 @@ import {
   FileText,
   Copy,
   X as CloseIcon,
-  User as UserIcon
+  User as UserIcon,
+  Camera,
+  Loader2
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -45,12 +47,14 @@ const App: React.FC = () => {
   const [swappingTicketId, setSwappingTicketId] = useState<string | null>(null);
   const [addingTicketsToUser, setAddingTicketsToUser] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
+  const [isCapturing, setIsCapturing] = useState(false);
   const [showDbMenu, setShowDbMenu] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [fullScreenName, setFullScreenName] = useState('');
   
   const fsInputContainerRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const gridRef = useRef<HTMLDivElement>(null);
 
   const [fsSuggestions, setFsSuggestions] = useState<string[]>([]);
   const [showFsSuggestions, setShowFsSuggestions] = useState(false);
@@ -217,6 +221,55 @@ const App: React.FC = () => {
     downloadAnchor.click();
     downloadAnchor.remove();
     setShowDbMenu(false);
+  };
+
+  const handleCaptureBoard = async () => {
+    if (!gridRef.current) return;
+    
+    setIsCapturing(true);
+    try {
+      // Usar html2canvas de forma segura desde el objeto window definido en el HTML
+      const html2canvas = (window as any).html2canvas;
+      const canvas = await html2canvas(gridRef.current, {
+        backgroundColor: '#020617', // Slate 950
+        scale: 2, // Mejor resolución para móviles
+        logging: false,
+        useCORS: true
+      });
+      
+      const image = canvas.toDataURL("image/png");
+      const fileName = `rifa_tablero_${new Date().getTime()}.png`;
+
+      // Intentar compartir si es móvil, de lo contrario descargar
+      if (navigator.share && navigator.canShare) {
+        const blob = await (await fetch(image)).blob();
+        const file = new File([blob], fileName, { type: 'image/png' });
+        
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({
+            files: [file],
+            title: 'Estado de la Rifa',
+            text: 'Aquí está el estado actual de los números.'
+          });
+        } else {
+          downloadImage(image, fileName);
+        }
+      } else {
+        downloadImage(image, fileName);
+      }
+    } catch (error) {
+      console.error("Capture failed", error);
+      alert("No se pudo tomar la captura. Intenta nuevamente.");
+    } finally {
+      setIsCapturing(false);
+    }
+  };
+
+  const downloadImage = (dataUrl: string, name: string) => {
+    const link = document.createElement('a');
+    link.download = name;
+    link.href = dataUrl;
+    link.click();
   };
 
   const handlePrepareExportText = () => {
@@ -476,6 +529,7 @@ const App: React.FC = () => {
                  </div>
               )}
               <TicketGrid 
+                ref={gridRef}
                 tickets={tickets} 
                 onToggleTicket={handleToggleTicket} 
                 swappingTicketId={swappingTicketId} 
@@ -498,8 +552,30 @@ const App: React.FC = () => {
 
       {/* Control for Full Screen Mode */}
       {isFullScreen && (
-        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 z-50 flex justify-center items-center">
-           <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-4xl px-4">
+        <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 z-50 flex flex-col items-center gap-4">
+           {/* Barra Superior del control con botón de captura */}
+           <div className="flex justify-between items-center w-full max-w-4xl px-2">
+              <button 
+                type="button"
+                onClick={handleCaptureBoard}
+                disabled={isCapturing}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg disabled:opacity-50"
+              >
+                {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
+                {isCapturing ? 'Capturando...' : 'Tomar Captura'}
+              </button>
+              
+              <button 
+                type="button"
+                onClick={() => { setIsFullScreen(false); setAddingTicketsToUser(null); }}
+                className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg border border-slate-700"
+              >
+                <Minimize2 size={16} />
+                SALIR
+              </button>
+           </div>
+
+           <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-4xl px-2">
               <div className="flex-1 w-full sm:w-auto relative" ref={fsInputContainerRef}>
                  <div className="flex items-center gap-3">
                     <input 
@@ -554,15 +630,6 @@ const App: React.FC = () => {
                     </div>
                  )}
               </div>
-
-              <button 
-                type="button"
-                onClick={() => { setIsFullScreen(false); setAddingTicketsToUser(null); }}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg border border-slate-700"
-              >
-                <Minimize2 size={16} />
-                SALIR
-              </button>
            </div>
         </div>
       )}
