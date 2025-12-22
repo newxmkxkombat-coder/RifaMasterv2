@@ -1,34 +1,23 @@
 
 import { GoogleGenAI } from "@google/genai";
 import { Ticket, TicketStatus } from "../types";
-import { TICKET_PRICE } from "../constants";
-
-const getAiClient = () => {
-  // Verificación segura de la existencia de process y env
-  try {
-    const apiKey = (window as any).process?.env?.API_KEY || "";
-    if (!apiKey) {
-      return null;
-    }
-    return new GoogleGenAI({ apiKey });
-  } catch (e) {
-    return null;
-  }
-};
+// Fix: Corrected import to DEFAULT_TICKET_PRICE
+import { DEFAULT_TICKET_PRICE } from "../constants";
 
 export const askRaffleAssistant = async (
   tickets: Ticket[],
   question: string
 ): Promise<string> => {
-  const ai = getAiClient();
-  if (!ai) return "Configura tu API Key para usar la IA.";
+  // Fix: Initialize GoogleGenAI directly with process.env.API_KEY as per guidelines
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const reservedCount = tickets.filter(t => t.status === TicketStatus.RESERVED).length;
   const paidCount = tickets.filter(t => t.status === TicketStatus.PAID).length;
   const availableCount = tickets.filter(t => t.status === TicketStatus.AVAILABLE).length;
   
-  const totalMoneyRaised = paidCount * TICKET_PRICE;
-  const totalMoneyPending = reservedCount * TICKET_PRICE;
+  // Fix: Use DEFAULT_TICKET_PRICE
+  const totalMoneyRaised = paidCount * DEFAULT_TICKET_PRICE;
+  const totalMoneyPending = reservedCount * DEFAULT_TICKET_PRICE;
 
   const buyersMap = new Map<string, number>();
   tickets.forEach(t => {
@@ -45,7 +34,7 @@ export const askRaffleAssistant = async (
 
   const systemPrompt = `
     Eres un asistente para una Rifa (00-99).
-    Precio: $${TICKET_PRICE}
+    Precio: $${DEFAULT_TICKET_PRICE}
     Disponibles: ${availableCount}
     Reservadas: ${reservedCount} ($${totalMoneyPending} deuda)
     Pagadas: ${paidCount} ($${totalMoneyRaised} total)
@@ -63,8 +52,10 @@ export const askRaffleAssistant = async (
       }
     });
 
+    // Fix: response.text is a property, not a method
     return response.text || "No hay respuesta.";
   } catch (error) {
+    console.error("Gemini Assistant Error:", error);
     return "Error de conexión con la IA.";
   }
 };
