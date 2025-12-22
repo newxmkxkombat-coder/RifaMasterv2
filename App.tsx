@@ -228,11 +228,10 @@ const App: React.FC = () => {
     
     setIsCapturing(true);
     try {
-      // Usar html2canvas de forma segura desde el objeto window definido en el HTML
       const html2canvas = (window as any).html2canvas;
       const canvas = await html2canvas(gridRef.current, {
-        backgroundColor: '#020617', // Slate 950
-        scale: 2, // Mejor resolución para móviles
+        backgroundColor: '#020617', 
+        scale: 2, 
         logging: false,
         useCORS: true
       });
@@ -240,7 +239,6 @@ const App: React.FC = () => {
       const image = canvas.toDataURL("image/png");
       const fileName = `rifa_tablero_${new Date().getTime()}.png`;
 
-      // Intentar compartir si es móvil, de lo contrario descargar
       if (navigator.share && navigator.canShare) {
         const blob = await (await fetch(image)).blob();
         const file = new File([blob], fileName, { type: 'image/png' });
@@ -298,10 +296,17 @@ const App: React.FC = () => {
     sortedNames.forEach((name, index) => {
       const ticketsForUser = userMap.get(name)!;
       const allNumbers = ticketsForUser.flatMap(t => t.numbers).sort((a, b) => a.localeCompare(b));
-      const allPaid = ticketsForUser.every(t => t.paid);
-      const somePaid = ticketsForUser.some(t => t.paid);
       
-      let statusText = allPaid ? "✅ PAGADO" : (somePaid ? "⚠️ PARCIAL" : "⏳ PENDIENTE");
+      const totalTickets = ticketsForUser.length;
+      const paidCount = ticketsForUser.filter(t => t.paid).length;
+      const unpaidCount = totalTickets - paidCount;
+      
+      let statusText = "";
+      if (unpaidCount === 0) {
+        statusText = "✨ *AL DÍA (Todo Pagado)*";
+      } else {
+        statusText = `⏳ *PENDIENTE (${unpaidCount} boleta${unpaidCount > 1 ? 's' : ''} por pagar)*`;
+      }
 
       textContent += `👤 *${name.toUpperCase()}*\n`;
       textContent += `🔢 Números: ${allNumbers.join(' - ')}\n`;
@@ -313,7 +318,7 @@ const App: React.FC = () => {
     });
 
     textContent += "\n━━━━━━━━━━━━━━━━━━━━━━\n";
-    textContent += `📊 *RESUMEN:*\n`;
+    textContent += `📊 *RESUMEN TOTAL:*\n`;
     textContent += `✅ Vendidos: ${tickets.filter(t => t.status !== TicketStatus.AVAILABLE).length}/${TOTAL_NUMBERS}\n`;
     textContent += `💵 Recaudado: $${financialStats.paid.toLocaleString()}\n`;
     textContent += "━━━━━━━━━━━━━━━━━━━━━━";
@@ -407,7 +412,6 @@ const App: React.FC = () => {
         </header>
       )}
 
-      {/* Financial Stats Bar - Ultra Compact 10px */}
       {!isFullScreen && (
         <section className="max-w-5xl mx-auto px-4 mt-4">
           <div className="flex flex-wrap items-center gap-3">
@@ -428,14 +432,13 @@ const App: React.FC = () => {
         </section>
       )}
 
-      {/* Export Modal */}
       {exportModal.isOpen && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-xl">
           <div className="bg-slate-900 rounded-[2.5rem] shadow-[0_30px_60px_rgba(0,0,0,0.8)] border border-slate-800 w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
             <div className="p-8 border-b border-slate-800 flex justify-between items-center">
               <div>
                 <h3 className="text-2xl font-black uppercase italic tracking-tight text-white">Lista de Participantes</h3>
-                <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-widest">Listo para compartir</p>
+                <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-widest">Detalle de pagos incluido</p>
               </div>
               <button 
                 type="button"
@@ -550,10 +553,8 @@ const App: React.FC = () => {
         </div>
       </main>
 
-      {/* Control for Full Screen Mode */}
       {isFullScreen && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 z-50 flex flex-col items-center gap-4">
-           {/* Barra Superior del control con botón de captura */}
            <div className="flex justify-between items-center w-full max-w-4xl px-2">
               <button 
                 type="button"
@@ -634,7 +635,6 @@ const App: React.FC = () => {
         </div>
       )}
 
-      {/* Floating Sales Control (Normal Mode) */}
       {!swappingTicketId && !isFullScreen && (
         <SalesControl 
           selectedTickets={tickets.filter(t => t.status === TicketStatus.SELECTED)} 
@@ -646,7 +646,6 @@ const App: React.FC = () => {
         />
       )}
 
-      {/* Hidden File Input for Backup Loading */}
       <input type="file" ref={fileInputRef} onChange={(e) => {
         const file = e.target.files?.[0];
         if (!file) return;
