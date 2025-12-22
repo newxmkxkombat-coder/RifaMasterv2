@@ -1,7 +1,6 @@
 
 import React, { useMemo, useState } from 'react';
 import { Ticket, TicketStatus, UserSummary } from '../types';
-import { TICKET_PRICE } from '../constants';
 import { 
   Search, 
   Trash2, 
@@ -15,6 +14,7 @@ import {
 
 interface UserSummaryListProps {
   tickets: Ticket[];
+  ticketPrice: number;
   onTogglePayment: (ticketId: string) => void;
   onRevokeTicket: (ticketId: string) => void;
   onRevokeAllFromUser: (userName: string) => void;
@@ -24,6 +24,7 @@ interface UserSummaryListProps {
 
 const UserSummaryList: React.FC<UserSummaryListProps> = ({ 
   tickets, 
+  ticketPrice,
   onTogglePayment, 
   onRevokeTicket, 
   onRevokeAllFromUser, 
@@ -55,23 +56,20 @@ const UserSummaryList: React.FC<UserSummaryListProps> = ({
       const user = userMap.get(ticket.ownerName)!;
       user.tickets.push(ticket);
       user.ticketCount++;
-      if (ticket.status === TicketStatus.PAID) user.totalPaid += TICKET_PRICE;
-      else if (ticket.status === TicketStatus.RESERVED) user.totalDebt += TICKET_PRICE;
+      if (ticket.status === TicketStatus.PAID) user.totalPaid += ticketPrice;
+      else if (ticket.status === TicketStatus.RESERVED) user.totalDebt += ticketPrice;
     });
     
-    // Orden alfabético estricto para mantener la posición en la lista
     let result = Array.from(userMap.values()).sort((a, b) => a.name.localeCompare(b.name));
-    
     if (searchTerm.trim()) {
       const lower = searchTerm.toLowerCase();
       result = result.filter(u => u.name.toLowerCase().includes(lower) || u.tickets.some(t => t.id.includes(lower)));
     }
     return result;
-  }, [tickets, searchTerm]);
+  }, [tickets, searchTerm, ticketPrice]);
 
   return (
     <div className="space-y-4">
-      {/* Search Input */}
       <div className="relative group">
         <Search className="absolute left-5 top-1/2 -translate-y-1/2 h-5 w-5 text-slate-500 group-focus-within:text-emerald-400 transition-colors" />
         <input
@@ -81,11 +79,7 @@ const UserSummaryList: React.FC<UserSummaryListProps> = ({
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
-        {searchTerm && (
-          <button type="button" onClick={() => setSearchTerm('')} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500">
-            <X size={20} />
-          </button>
-        )}
+        {searchTerm && <button type="button" onClick={() => setSearchTerm('')} className="absolute right-5 top-1/2 -translate-y-1/2 text-slate-500"><X size={20} /></button>}
       </div>
 
       {users.length === 0 && (
@@ -96,95 +90,38 @@ const UserSummaryList: React.FC<UserSummaryListProps> = ({
 
       {users.map((user) => {
         const isExpanded = expandedUsers[user.name] || false;
-        
         return (
           <div key={user.name} className="bg-slate-900 rounded-[1.5rem] border border-slate-800 shadow-lg overflow-hidden transition-all duration-300">
-            {/* User Header */}
-            <div 
-              onClick={() => toggleUser(user.name)}
-              className="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-800/50 select-none"
-            >
+            <div onClick={() => toggleUser(user.name)} className="p-4 flex justify-between items-center cursor-pointer hover:bg-slate-800/50 select-none">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-base font-black text-slate-100 truncate uppercase italic tracking-tight">{user.name}</h3>
-                  <span className="shrink-0 text-[10px] bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-lg font-black">
-                    {user.ticketCount}
-                  </span>
+                  <span className="shrink-0 text-[10px] bg-emerald-500 text-slate-950 px-2 py-0.5 rounded-lg font-black">{user.ticketCount}</span>
                 </div>
                 <div className="flex gap-3 text-[10px] font-bold">
                   <span className="text-emerald-400 uppercase tracking-tighter">Pagado: ${user.totalPaid.toLocaleString()}</span>
-                  {user.totalDebt > 0 && (
-                    <span className="text-amber-500 uppercase tracking-tighter">Deuda: ${user.totalDebt.toLocaleString()}</span>
-                  )}
+                  {user.totalDebt > 0 && <span className="text-amber-500 uppercase tracking-tighter">Deuda: ${user.totalDebt.toLocaleString()}</span>}
                 </div>
               </div>
-              
               <div className="flex items-center gap-1 ml-4">
-                <button 
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); onAddMoreTickets(user.name); }}
-                  className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all flex items-center gap-1"
-                  title="Añadir más boletas"
-                >
-                  <PlusSquare size={18} />
-                  <span className="text-[9px] font-black uppercase hidden sm:inline">Añadir</span>
-                </button>
-                <button 
-                  type="button"
-                  onClick={(e) => { e.stopPropagation(); e.preventDefault(); setRevokeAllConfirmation(user.name); }}
-                  className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"
-                  title="Eliminar registro"
-                >
-                  <UserMinus size={18} />
-                </button>
-                <div className={`text-slate-600 transition-transform duration-300 ml-1 ${isExpanded ? 'rotate-180' : ''}`}>
-                  <ChevronDown size={20} />
-                </div>
+                <button type="button" onClick={(e) => { e.stopPropagation(); onAddMoreTickets(user.name); }} className="p-2 text-emerald-500 hover:bg-emerald-500/10 rounded-xl transition-all flex items-center gap-1"><PlusSquare size={18} /><span className="text-[9px] font-black uppercase hidden sm:inline">Añadir</span></button>
+                <button type="button" onClick={(e) => { e.stopPropagation(); setRevokeAllConfirmation(user.name); }} className="p-2 text-slate-600 hover:text-red-500 hover:bg-red-500/10 rounded-xl transition-all"><UserMinus size={18} /></button>
+                <div className={`text-slate-600 transition-transform duration-300 ml-1 ${isExpanded ? 'rotate-180' : ''}`}><ChevronDown size={20} /></div>
               </div>
             </div>
-
-            {/* Expanded Ultra-Compact Grid */}
-            <div className={`
-              transition-all duration-300 ease-in-out overflow-hidden
-              ${isExpanded ? 'max-h-[2000px] border-t border-slate-800 opacity-100' : 'max-h-0 opacity-0'}
-            `}>
+            <div className={`transition-all duration-300 ease-in-out overflow-hidden ${isExpanded ? 'max-h-[2000px] border-t border-slate-800 opacity-100' : 'max-h-0 opacity-0'}`}>
               <div className="p-3 bg-slate-950/40 grid grid-cols-2 sm:grid-cols-3 gap-2">
                 {user.tickets.map(ticket => {
                   const isPaid = ticket.status === TicketStatus.PAID;
                   return (
-                    <div 
-                      key={ticket.id} 
-                      className={`
-                        flex items-center justify-between p-2 rounded-xl border bg-slate-900 shadow-sm
-                        ${isPaid ? 'border-emerald-500/20' : 'border-amber-500/20'}
-                      `}
-                    >
+                    <div key={ticket.id} className={`flex items-center justify-between p-2 rounded-xl border bg-slate-900 shadow-sm ${isPaid ? 'border-emerald-500/20' : 'border-amber-500/20'}`}>
                       <div className="flex items-center gap-2">
-                        <div className={`
-                          w-8 h-8 flex items-center justify-center rounded-lg font-mono font-black text-sm shadow-inner
-                          ${isPaid ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500 text-slate-950'}
-                        `}>
-                          {ticket.id}
-                        </div>
-                        <button 
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            e.preventDefault(); // Evita scroll jumps
-                            onTogglePayment(ticket.id);
-                          }}
-                          className={`
-                            text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md transition-colors
-                            ${isPaid ? 'bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20' : 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20'}
-                          `}
-                        >
-                          {isPaid ? 'PAGO' : 'DEBE'}
-                        </button>
+                        <div className={`w-8 h-8 flex items-center justify-center rounded-lg font-mono font-black text-sm shadow-inner ${isPaid ? 'bg-emerald-500 text-slate-950' : 'bg-amber-500 text-slate-950'}`}>{ticket.id}</div>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); onTogglePayment(ticket.id); }} className={`text-[8px] font-black uppercase px-1.5 py-0.5 rounded-md transition-colors ${isPaid ? 'bg-emerald-500/10 text-emerald-400' : 'bg-amber-500/10 text-amber-500'}`}>{isPaid ? 'PAGO' : 'DEBE'}</button>
                       </div>
-                      
                       <div className="flex items-center gap-0.5">
-                        <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); onEditTicket(ticket.id); }} className="p-1.5 text-slate-600 hover:text-slate-100" title="Mover número"><Pencil size={14} /></button>
-                        <button type="button" onClick={(e) => { e.stopPropagation(); e.preventDefault(); setDeleteConfirmation({id: ticket.id, ownerName: user.name}); }} className="p-1.5 text-slate-600 hover:text-red-500" title="Liberar número"><Trash2 size={14} /></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); onEditTicket(ticket.id); }} className="p-1.5 text-slate-600 hover:text-slate-100"><Pencil size={14} /></button>
+                        <button type="button" onClick={(e) => { e.stopPropagation(); setDeleteConfirmation({id: ticket.id, ownerName: user.name}); }} className="p-1.5 text-slate-600 hover:text-red-500"><Trash2 size={14} /></button>
                       </div>
                     </div>
                   );
@@ -195,7 +132,6 @@ const UserSummaryList: React.FC<UserSummaryListProps> = ({
         );
       })}
 
-      {/* Modals */}
       {deleteConfirmation && (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
           <div className="bg-slate-900 rounded-[2rem] shadow-2xl max-w-sm w-full p-8 text-center border border-slate-800">
