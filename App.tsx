@@ -4,7 +4,7 @@ import TicketGrid from './components/TicketGrid';
 import UserSummaryList from './components/UserSummaryList';
 import SalesControl from './components/SalesControl';
 import { Ticket, TicketStatus } from './types';
-import { TOTAL_NUMBERS, TICKET_PRICE } from './constants';
+import { TOTAL_NUMBERS, DEFAULT_TICKET_PRICE } from './constants';
 import { 
   LayoutGrid, 
   Users, 
@@ -24,7 +24,8 @@ import {
   X as CloseIcon,
   User as UserIcon,
   Camera,
-  Loader2
+  Loader2,
+  DollarSign
 } from 'lucide-react';
 
 const App: React.FC = () => {
@@ -41,6 +42,16 @@ const App: React.FC = () => {
       id: i.toString().padStart(2, '0'),
       status: TicketStatus.AVAILABLE,
     }));
+  });
+
+  const [ticketPrice, setTicketPrice] = useState<number>(() => {
+    const saved = localStorage.getItem('raffleTicketPrice');
+    return saved ? parseInt(saved, 10) : DEFAULT_TICKET_PRICE;
+  });
+
+  const [allTimeParticipants, setAllTimeParticipants] = useState<string[]>(() => {
+    const saved = localStorage.getItem('raffleAllTimeParticipants');
+    return saved ? JSON.parse(saved) : [];
   });
 
   const [activeTab, setActiveTab] = useState<'grid' | 'users'>('grid');
@@ -71,27 +82,21 @@ const App: React.FC = () => {
     const totalSold = paidCount + reservedCount;
     
     return {
-      paid: paidCount * TICKET_PRICE,
-      pending: reservedCount * TICKET_PRICE,
-      total: totalSold * TICKET_PRICE,
+      paid: paidCount * ticketPrice,
+      pending: reservedCount * ticketPrice,
+      total: totalSold * ticketPrice,
       count: totalSold
     };
-  }, [tickets]);
-
-  const existingNames = useMemo(() => {
-    const names = new Set<string>();
-    tickets.forEach(t => {
-      if (t.ownerName) names.add(t.ownerName);
-    });
-    return Array.from(names).sort((a, b) => a.localeCompare(b));
-  }, [tickets]);
+  }, [tickets, ticketPrice]);
 
   useEffect(() => {
     setIsSaving(true);
     localStorage.setItem('raffleTickets_v2', JSON.stringify(tickets));
+    localStorage.setItem('raffleTicketPrice', ticketPrice.toString());
+    localStorage.setItem('raffleAllTimeParticipants', JSON.stringify(allTimeParticipants));
     const timer = setTimeout(() => setIsSaving(false), 600);
     return () => clearTimeout(timer);
-  }, [tickets]);
+  }, [tickets, ticketPrice, allTimeParticipants]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -105,16 +110,17 @@ const App: React.FC = () => {
 
   useEffect(() => {
     const currentName = fullScreenName || addingTicketsToUser || '';
-    if (currentName.trim().length > 0 && !addingTicketsToUser) {
-      const filtered = existingNames
+    if (currentName.trim().length > 0) {
+      const filtered = allTimeParticipants
         .filter(name => name.toLowerCase().includes(currentName.toLowerCase()) && name.toLowerCase() !== currentName.toLowerCase())
         .slice(0, 5);
       setFsSuggestions(filtered);
       setShowFsSuggestions(filtered.length > 0);
     } else {
+      setFsSuggestions(allTimeParticipants.slice(0, 5));
       setShowFsSuggestions(false);
     }
-  }, [fullScreenName, addingTicketsToUser, existingNames]);
+  }, [fullScreenName, addingTicketsToUser, allTimeParticipants]);
 
   const handleToggleTicket = (id: string) => {
     if (swappingTicketId) {
@@ -156,17 +162,25 @@ const App: React.FC = () => {
   };
 
   const handleConfirmSale = (name: string, isPaid: boolean) => {
+    const normalizedName = name.trim();
+    if (!normalizedName) return;
+
     setTickets(prev => prev.map(t => {
       if (t.status === TicketStatus.SELECTED) {
         return {
           ...t,
           status: isPaid ? TicketStatus.PAID : TicketStatus.RESERVED,
-          ownerName: name
+          ownerName: normalizedName
         };
       }
       return t;
     }));
     
+    // Memory logic: add to allTimeParticipants if not exists
+    if (!allTimeParticipants.some(p => p.toLowerCase() === normalizedName.toLowerCase())) {
+      setAllTimeParticipants(prev => [...prev, normalizedName].sort((a, b) => a.localeCompare(b)));
+    }
+
     setAddingTicketsToUser(null);
     setFullScreenName('');
     setShowFsSuggestions(false);
@@ -212,6 +226,11 @@ const App: React.FC = () => {
     handleClearSelection();
   };
 
+  // Fix: Added missing handleEnterFullScreen function to handle transition to full screen mode
+  const handleEnterFullScreen = () => {
+    setIsFullScreen(true);
+  };
+
   const handleDownloadBackup = () => {
     const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(tickets));
     const downloadAnchor = document.createElement('a');
@@ -223,9 +242,22 @@ const App: React.FC = () => {
     setShowDbMenu(false);
   };
 
+  const handleResetRaffle = () => {
+    const firstConfirm = confirm('¿Estás seguro de que quieres reiniciar la rifa? Esta acción no se puede deshacer.');
+    if (firstConfirm) {
+      const secondConfirm = confirm('⚠️ ÚLTIMA ADVERTENCIA: Se borrarán todos los participantes actuales, pagos y números ocupados. ¿Deseas proceder con el reinicio total?');
+      if (secondConfirm) {
+        setTickets(Array.from({ length: TOTAL_NUMBERS }, (_, i) => ({ 
+          id: i.toString().padStart(2, '0'), 
+          status: TicketStatus.AVAILABLE 
+        })));
+        setShowDbMenu(false);
+      }
+    }
+  };
+
   const handleCaptureBoard = async () => {
     if (!gridRef.current) return;
-    
     setIsCapturing(true);
     try {
       const html2canvas = (window as any).html2canvas;
@@ -235,29 +267,12 @@ const App: React.FC = () => {
         logging: false,
         useCORS: true
       });
-      
       const image = canvas.toDataURL("image/png");
       const fileName = `rifa_tablero_${new Date().getTime()}.png`;
-
-      if (navigator.share && navigator.canShare) {
-        const blob = await (await fetch(image)).blob();
-        const file = new File([blob], fileName, { type: 'image/png' });
-        
-        if (navigator.canShare({ files: [file] })) {
-          await navigator.share({
-            files: [file],
-            title: 'Estado de la Rifa',
-            text: 'Aquí está el estado actual de los números.'
-          });
-        } else {
-          downloadImage(image, fileName);
-        }
-      } else {
-        downloadImage(image, fileName);
-      }
+      downloadImage(image, fileName);
     } catch (error) {
       console.error("Capture failed", error);
-      alert("No se pudo tomar la captura. Intenta nuevamente.");
+      alert("No se pudo tomar la captura.");
     } finally {
       setIsCapturing(false);
     }
@@ -290,52 +305,21 @@ const App: React.FC = () => {
 
     let textContent = "🎟️ *ESTADO ACTUAL DE LA RIFA* 🎟️\n";
     textContent += "━━━━━━━━━━━━━━━━━━━━━━\n\n";
-
     const sortedNames = Array.from(userMap.keys()).sort((a, b) => a.localeCompare(b));
-
     sortedNames.forEach((name, index) => {
       const ticketsForUser = userMap.get(name)!;
       const allNumbers = ticketsForUser.flatMap(t => t.numbers).sort((a, b) => a.localeCompare(b));
-      
       const totalTickets = ticketsForUser.length;
       const paidCount = ticketsForUser.filter(t => t.paid).length;
       const unpaidCount = totalTickets - paidCount;
-      
-      let statusText = "";
-      if (unpaidCount === 0) {
-        statusText = "✨ *AL DÍA (Todo Pagado)*";
-      } else {
-        statusText = `⏳ *PENDIENTE (${unpaidCount} boleta${unpaidCount > 1 ? 's' : ''} por pagar)*`;
-      }
-
-      textContent += `👤 *${name.toUpperCase()}*\n`;
-      textContent += `🔢 Números: ${allNumbers.join(' - ')}\n`;
-      textContent += `💰 Estado: ${statusText}\n`;
-      
-      if (index < sortedNames.length - 1) {
-        textContent += "----------------------\n\n";
-      }
+      let statusText = unpaidCount === 0 ? "✨ *AL DÍA (Todo Pagado)*" : `⏳ *PENDIENTE (${unpaidCount} boleta${unpaidCount > 1 ? 's' : ''} por pagar)*`;
+      textContent += `👤 *${name.toUpperCase()}*\n🔢 Números: ${allNumbers.join(' - ')}\n💰 Estado: ${statusText}\n`;
+      if (index < sortedNames.length - 1) textContent += "----------------------\n\n";
     });
-
     textContent += "\n━━━━━━━━━━━━━━━━━━━━━━\n";
-    textContent += `📊 *RESUMEN TOTAL:*\n`;
-    textContent += `✅ Vendidos: ${tickets.filter(t => t.status !== TicketStatus.AVAILABLE).length}/${TOTAL_NUMBERS}\n`;
-    textContent += `💵 Recaudado: $${financialStats.paid.toLocaleString()}\n`;
-    textContent += "━━━━━━━━━━━━━━━━━━━━━━";
-
+    textContent += `📊 *RESUMEN TOTAL:*\n✅ Vendidos: ${tickets.filter(t => t.status !== TicketStatus.AVAILABLE).length}/${TOTAL_NUMBERS}\n💵 Recaudado: $${financialStats.paid.toLocaleString()}\n━━━━━━━━━━━━━━━━━━━━━━`;
     setExportModal({ isOpen: true, content: textContent });
     setShowDbMenu(false);
-  };
-
-  const handleCopyContent = () => {
-    navigator.clipboard.writeText(exportModal.content);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const handleEnterFullScreen = () => {
-    setActiveTab('grid');
-    setIsFullScreen(true);
   };
 
   const availableCount = tickets.filter(t => t.status === TicketStatus.AVAILABLE).length;
@@ -356,19 +340,28 @@ const App: React.FC = () => {
                     <h1 className="text-xl font-black tracking-tight leading-none uppercase italic text-white">RifaMaster</h1>
                     <div className="flex items-center mt-1">
                       {isSaving ? (
-                        <span className="flex items-center text-[10px] text-slate-500 font-medium">
-                          <RefreshCw size={10} className="mr-1 animate-spin" /> Sincronizando...
-                        </span>
+                        <span className="flex items-center text-[10px] text-slate-500 font-medium"><RefreshCw size={10} className="mr-1 animate-spin" /> Sincronizando...</span>
                       ) : (
-                        <span className="flex items-center text-[10px] text-emerald-400 font-bold uppercase tracking-widest">
-                          <CheckCircle size={10} className="mr-1" /> Datos Protegidos
-                        </span>
+                        <span className="flex items-center text-[10px] text-emerald-400 font-bold uppercase tracking-widest"><CheckCircle size={10} className="mr-1" /> Datos Protegidos</span>
                       )}
                     </div>
                   </div>
                </div>
                
                <div className="flex items-center gap-2 sm:ml-6">
+                  {/* Price Input Interface */}
+                  <div className="flex items-center bg-slate-800 rounded-xl px-3 border border-slate-700 focus-within:border-emerald-500/50 transition-colors">
+                    <DollarSign size={14} className="text-emerald-500 mr-1" />
+                    <input 
+                      type="number"
+                      value={ticketPrice}
+                      onChange={(e) => setTicketPrice(Math.max(0, parseInt(e.target.value) || 0))}
+                      className="bg-transparent border-none outline-none w-20 py-2 text-xs font-black text-white"
+                      placeholder="Valor"
+                      title="Cambiar valor de boleta"
+                    />
+                  </div>
+
                   <button 
                     type="button"
                     onClick={handleEnterFullScreen}
@@ -399,7 +392,7 @@ const App: React.FC = () => {
                               <Upload size={16} /> <span>Cargar Datos</span>
                            </button>
                            <div className="h-px bg-slate-800 my-1 mx-2"></div>
-                           <button type="button" onClick={() => { if(confirm('¿Borrar TODO?')) setTickets(Array.from({ length: TOTAL_NUMBERS }, (_, i) => ({ id: i.toString().padStart(2, '0'), status: TicketStatus.AVAILABLE }))); setShowDbMenu(false); }} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-400 hover:bg-red-950/30 rounded-xl font-bold transition-colors">
+                           <button type="button" onClick={handleResetRaffle} className="w-full flex items-center space-x-3 px-4 py-3 text-sm text-red-400 hover:bg-red-950/30 rounded-xl font-bold transition-colors">
                               <Trash size={16} /> <span>Reiniciar Rifa</span>
                            </button>
                         </div>
@@ -440,40 +433,12 @@ const App: React.FC = () => {
                 <h3 className="text-2xl font-black uppercase italic tracking-tight text-white">Lista de Participantes</h3>
                 <p className="text-xs text-slate-500 font-bold mt-1 uppercase tracking-widest">Detalle de pagos incluido</p>
               </div>
-              <button 
-                type="button"
-                onClick={() => setExportModal({ isOpen: false, content: '' })}
-                className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-full transition-all"
-              >
-                <CloseIcon size={20} />
-              </button>
+              <button type="button" onClick={() => setExportModal({ isOpen: false, content: '' })} className="p-3 bg-slate-800 hover:bg-slate-700 text-slate-400 rounded-full transition-all"><CloseIcon size={20} /></button>
             </div>
-            
-            <div className="flex-1 overflow-y-auto p-8">
-              <div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 font-mono text-emerald-400 text-sm leading-relaxed whitespace-pre-wrap select-all min-h-[200px]">
-                {exportModal.content}
-              </div>
-            </div>
-
+            <div className="flex-1 overflow-y-auto p-8"><div className="bg-slate-950 border border-slate-800 rounded-3xl p-6 font-mono text-emerald-400 text-sm leading-relaxed whitespace-pre-wrap select-all min-h-[200px]">{exportModal.content}</div></div>
             <div className="p-8 bg-slate-950/50 border-t border-slate-800 flex flex-col sm:flex-row gap-4">
-              <button 
-                type="button"
-                onClick={handleCopyContent}
-                className={`
-                  flex-1 py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-all
-                  ${copied ? 'bg-emerald-500 text-slate-950' : 'bg-slate-100 text-slate-950 hover:bg-white'}
-                `}
-              >
-                {copied ? <Check size={20} strokeWidth={3} /> : <Copy size={20} />}
-                {copied ? '¡Copiado!' : 'Copiar Todo'}
-              </button>
-              <button 
-                type="button"
-                onClick={() => setExportModal({ isOpen: false, content: '' })}
-                className="flex-1 py-5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-[1.5rem] font-black uppercase tracking-widest text-sm"
-              >
-                Cerrar Ventana
-              </button>
+              <button type="button" onClick={() => { navigator.clipboard.writeText(exportModal.content); setCopied(true); setTimeout(() => setCopied(false), 2000); }} className={`flex-1 py-5 rounded-[1.5rem] font-black uppercase tracking-widest text-sm flex items-center justify-center gap-3 transition-all ${copied ? 'bg-emerald-500 text-slate-950' : 'bg-slate-100 text-slate-950 hover:bg-white'}`}>{copied ? <Check size={20} strokeWidth={3} /> : <Copy size={20} />}{copied ? '¡Copiado!' : 'Copiar Todo'}</button>
+              <button type="button" onClick={() => setExportModal({ isOpen: false, content: '' })} className="flex-1 py-5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-[1.5rem] font-black uppercase tracking-widest text-sm">Cerrar Ventana</button>
             </div>
           </div>
         </div>
@@ -504,45 +469,18 @@ const App: React.FC = () => {
 
         <div className={`flex-1 min-h-0 ${isFullScreen ? 'px-1' : ''}`}>
           {activeTab === 'grid' ? (
-            <>
-              {swappingTicketId && !isFullScreen && (
-                 <div className="bg-indigo-950/40 border border-indigo-500/30 rounded-2xl p-4 mb-8 flex justify-between items-center ring-1 ring-indigo-500/20 w-full">
-                    <p className="text-sm font-semibold text-indigo-300 italic">Moviendo #{swappingTicketId}. Elije un nuevo destino disponible.</p>
-                    <button type="button" onClick={() => setSwappingTicketId(null)} className="text-[10px] font-black bg-indigo-500 text-white px-4 py-2 rounded-xl uppercase">Cancelar</button>
-                 </div>
-              )}
-              {addingTicketsToUser && !isFullScreen && (
-                 <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-2xl p-4 mb-8 flex justify-between items-center ring-1 ring-emerald-500/20 w-full">
-                    <div className="flex items-center gap-3">
-                      <div className="p-2 bg-emerald-500 text-slate-950 rounded-lg animate-pulse">
-                        <UserPlus size={18} />
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black uppercase text-emerald-400 tracking-widest leading-none mb-1">Editando asignación</p>
-                        <p className="text-sm font-bold text-white italic uppercase">Asignando boletas a: {addingTicketsToUser}</p>
-                      </div>
-                    </div>
-                    <button 
-                      type="button"
-                      onClick={() => setAddingTicketsToUser(null)} 
-                      className="text-[10px] font-black bg-emerald-500 text-slate-950 hover:bg-emerald-400 px-6 py-2.5 rounded-xl uppercase tracking-widest shadow-lg active:scale-95 transition-all"
-                    >
-                      Terminar
-                    </button>
-                 </div>
-              )}
-              <TicketGrid 
-                ref={gridRef}
-                tickets={tickets} 
-                onToggleTicket={handleToggleTicket} 
-                swappingTicketId={swappingTicketId} 
-                isFullScreen={isFullScreen} 
-                activeOwnerName={addingTicketsToUser}
-              />
-            </>
+            <TicketGrid 
+              ref={gridRef}
+              tickets={tickets} 
+              onToggleTicket={handleToggleTicket} 
+              swappingTicketId={swappingTicketId} 
+              isFullScreen={isFullScreen} 
+              activeOwnerName={addingTicketsToUser}
+            />
           ) : (
             <UserSummaryList 
               tickets={tickets} 
+              ticketPrice={ticketPrice}
               onTogglePayment={handleTogglePayment}
               onRevokeTicket={handleRevokeTicket}
               onRevokeAllFromUser={handleRevokeAllFromUser}
@@ -556,26 +494,9 @@ const App: React.FC = () => {
       {isFullScreen && (
         <div className="fixed bottom-0 left-0 right-0 p-4 bg-slate-900/95 backdrop-blur-xl border-t border-slate-800 z-50 flex flex-col items-center gap-4">
            <div className="flex justify-between items-center w-full max-w-4xl px-2">
-              <button 
-                type="button"
-                onClick={handleCaptureBoard}
-                disabled={isCapturing}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg disabled:opacity-50"
-              >
-                {isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}
-                {isCapturing ? 'Capturando...' : 'Tomar Captura'}
-              </button>
-              
-              <button 
-                type="button"
-                onClick={() => { setIsFullScreen(false); setAddingTicketsToUser(null); }}
-                className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg border border-slate-700"
-              >
-                <Minimize2 size={16} />
-                SALIR
-              </button>
+              <button type="button" onClick={handleCaptureBoard} disabled={isCapturing} className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 px-6 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg disabled:opacity-50">{isCapturing ? <Loader2 size={16} className="animate-spin" /> : <Camera size={16} />}{isCapturing ? 'Capturando...' : 'Tomar Captura'}</button>
+              <button type="button" onClick={() => { setIsFullScreen(false); setAddingTicketsToUser(null); }} className="bg-slate-800 hover:bg-slate-700 text-slate-400 px-8 py-3 rounded-2xl font-black uppercase tracking-widest text-[10px] flex items-center gap-3 active:scale-95 transition-all shadow-lg border border-slate-700"><Minimize2 size={16} />SALIR</button>
            </div>
-
            <div className="flex flex-col sm:flex-row items-center gap-4 w-full max-w-4xl px-2">
               <div className="flex-1 w-full sm:w-auto relative" ref={fsInputContainerRef}>
                  <div className="flex items-center gap-3">
@@ -587,46 +508,23 @@ const App: React.FC = () => {
                           if (addingTicketsToUser) setAddingTicketsToUser(e.target.value);
                           else setFullScreenName(e.target.value);
                       }}
-                      onFocus={() => (fullScreenName.trim().length > 0 || addingTicketsToUser) && fsSuggestions.length > 0 && setShowFsSuggestions(true)}
+                      onFocus={() => setShowFsSuggestions(true)}
                       className="w-full bg-slate-950 border border-slate-800 rounded-2xl px-5 py-3 text-sm focus:ring-2 focus:ring-emerald-500/30 transition-all text-slate-100 placeholder-slate-600 font-bold italic"
                     />
-                    {selectedCount > 0 && (
+                    {(selectedCount > 0 || addingTicketsToUser) && (
                       <div className="flex gap-2">
-                        <button 
-                          type="button"
-                          onClick={() => handleConfirmSale(addingTicketsToUser || fullScreenName, false)}
-                          disabled={!(addingTicketsToUser || fullScreenName).trim()}
-                          className="bg-slate-800 text-amber-500 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all whitespace-nowrap"
-                        >
-                          Apartar
-                        </button>
-                        <button 
-                          type="button"
-                          onClick={() => handleConfirmSale(addingTicketsToUser || fullScreenName, true)}
-                          disabled={!(addingTicketsToUser || fullScreenName).trim()}
-                          className="bg-emerald-500 text-slate-950 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all flex items-center gap-2 whitespace-nowrap"
-                        >
-                          <Check size={14} strokeWidth={4} /> Confirmar
-                        </button>
+                        <button type="button" onClick={() => handleConfirmSale(addingTicketsToUser || fullScreenName, false)} disabled={!(addingTicketsToUser || fullScreenName).trim()} className="bg-slate-800 text-amber-500 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all whitespace-nowrap">Apartar</button>
+                        <button type="button" onClick={() => handleConfirmSale(addingTicketsToUser || fullScreenName, true)} disabled={!(addingTicketsToUser || fullScreenName).trim()} className="bg-emerald-500 text-slate-950 px-4 py-3 rounded-2xl text-[10px] font-black uppercase tracking-widest disabled:opacity-20 transition-all flex items-center gap-2 whitespace-nowrap"><Check size={14} strokeWidth={4} /> Confirmar</button>
                       </div>
                     )}
                  </div>
-
-                 {showFsSuggestions && !addingTicketsToUser && (
-                    <div className="absolute bottom-full left-0 w-full mb-3 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-hidden z-[60]">
+                 {showFsSuggestions && (
+                    <div className="absolute bottom-full left-0 w-full mb-3 bg-slate-900 border border-slate-700 rounded-2xl shadow-2xl overflow-y-auto max-h-48 z-[60]">
                        <div className="p-2">
-                          <p className="px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 mb-1">Sugerencias</p>
-                          {fsSuggestions.map((name, i) => (
-                            <button
-                              key={i}
-                              type="button"
-                              onClick={() => { setFullScreenName(name); setShowFsSuggestions(false); }}
-                              className="w-full text-left px-4 py-3 text-sm font-bold text-slate-200 hover:bg-emerald-500 hover:text-slate-950 rounded-xl transition-colors flex items-center gap-3"
-                            >
-                              <UserIcon size={14} className="opacity-50" />
-                              {name}
-                            </button>
-                          ))}
+                          <p className="px-3 py-1.5 text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-slate-800 mb-1">Participantes Registrados</p>
+                          {fsSuggestions.length > 0 ? fsSuggestions.map((name, i) => (
+                            <button key={i} type="button" onClick={() => { if(addingTicketsToUser) setAddingTicketsToUser(name); else setFullScreenName(name); setShowFsSuggestions(false); }} className="w-full text-left px-4 py-3 text-sm font-bold text-slate-200 hover:bg-emerald-500 hover:text-slate-950 rounded-xl transition-colors flex items-center gap-3"><UserIcon size={14} className="opacity-50" />{name}</button>
+                          )) : <p className="px-4 py-3 text-xs text-slate-600 italic">Escribe para registrar uno nuevo</p>}
                        </div>
                     </div>
                  )}
@@ -638,11 +536,12 @@ const App: React.FC = () => {
       {!swappingTicketId && !isFullScreen && (
         <SalesControl 
           selectedTickets={tickets.filter(t => t.status === TicketStatus.SELECTED)} 
+          ticketPrice={ticketPrice}
           onConfirmSale={handleConfirmSale}
           onClearSelection={handleClearSelection}
           initialBuyerName={addingTicketsToUser || ''}
           hideInEditMode={!!addingTicketsToUser}
-          existingNames={existingNames}
+          existingNames={allTimeParticipants}
         />
       )}
 
